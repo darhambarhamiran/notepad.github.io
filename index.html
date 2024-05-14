@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <title>نوت پد ساده</title>
+    <style>
+        .note {
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>نوت پد ساده</h1>
+    <textarea id="noteContent"></textarea><br>
+    <button onclick="saveNote()">ذخیره یادداشت</button>
+    <div id="notesContainer"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/parse/2.18.0/parse.min.js"></script>
+    <script>
+        Parse.initialize("4ZQKeZMaAL60CY63kgU8oO5S3emrVGNOuOvomBuC", "LVQBKZcp9TD5Z9kN1XTOPAZB5eNPZMEbgUJGp9RY");
+        Parse.serverURL = 'https://parseapi.back4app.com/';
+
+        function saveNote() {
+            var Note = Parse.Object.extend("Note");
+            var note = new Note();
+
+            var content = document.getElementById('noteContent').value;
+            if (content.length > 1000) {
+                var contentParts = [];
+                while (content.length > 0) {
+                    var partLength = Math.min(content.length, 1000);
+                    var part = content.substring(0, partLength);
+                    content = content.substring(partLength);
+                    contentParts.push(part);
+                }
+                note.set("contentParts", contentParts);
+            } else {
+                note.set("content", content);
+            }
+
+            note.save().then(function(note) {
+                alert('یادداشت با موفقیت ذخیره شد با شناسه: ' + note.id);
+                loadNotes();
+            }, function(error) {
+                alert('خطا در ذخیره یادداشت: ' + error.message);
+            });
+        }
+
+        function loadNotes() {
+            var Note = Parse.Object.extend("Note");
+            var query = new Parse.Query(Note);
+            query.find().then(function(results) {
+                var notesContainer = document.getElementById('notesContainer');
+                notesContainer.innerHTML = '';
+                results.forEach(function(note) {
+                    var div = document.createElement('div');
+                    div.className = 'note';
+                    var contentParts = note.get('contentParts');
+                    var content = contentParts ? contentParts.join('') : note.get('content');
+                    div.innerHTML = content + 
+                        '<br><button onclick="editNote(\'' + note.id + '\')">ویرایش</button>' +
+                        '<button onclick="deleteNote(\'' + note.id + '\')">حذف</button>';
+                    notesContainer.appendChild(div);
+                });
+            }, function(error) {
+                alert('خطا در بارگذاری یادداشت‌ها: ' + error.message);
+            });
+        }
+
+        function editNote(noteId) {
+            var Note = Parse.Object.extend("Note");
+            var query = new Parse.Query(Note);
+            query.get(noteId).then(function(note) {
+                var contentParts = note.get('contentParts');
+                var content = contentParts ? contentParts.join('') : note.get('content');
+                var newContent = prompt('یادداشت جدید را وارد کنید:', content);
+                if (newContent !== null && newContent !== '') {
+                    if (newContent.length > 1000) {
+                        var newContentParts = [];
+                        while (newContent.length > 0) {
+                            var partLength = Math.min(newContent.length, 1000);
+                            var part = newContent.substring(0, partLength);
+                            newContent = newContent.substring(partLength);
+                            newContentParts.push(part);
+                        }
+                        note.set("contentParts", newContentParts);
+                    } else {
+                        note.set("content", newContent);
+                        note.unset("contentParts"); // حذف قطعات قبلی اگر وجود دارد
+                    }
+                    note.save().then(function(note) {
+                        alert('یادداشت با موفقیت ویرایش شد.');
+                        loadNotes();
+                    }, function(error) {
+                        alert('خطا در ویرایش یادداشت: ' + error.message);
+                    });
+                }
+            }, function(error) {
+                alert('یادداشت پیدا نشد: ' + error.message);
+            });
+        }
+
+        function deleteNote(noteId) {
+            var Note = Parse.Object.extend("Note");
+            var query = new Parse.Query(Note);
+            query.get(noteId).then(function(note) {
+                return note.destroy();
+            }).then(function() {
+                alert('یادداشت با موفقیت حذف شد.');
+                loadNotes();
+            }, function(error) {
+                alert('خطا در حذف یادداشت: ' + error.message);
+            });
+        }
+
+        loadNotes();
+    </script>
+</body>
+</html>
